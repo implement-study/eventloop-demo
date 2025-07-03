@@ -42,6 +42,6 @@ public class ScheduleTask implements Runnable, Comparable<ScheduleTask> {
 
     @Override
     public int compareTo(ScheduleTask o) {
-        return Long.compare(this.deadline,o.deadline);
+        return Long.compare(this.deadline, o.deadline);
     }
 }

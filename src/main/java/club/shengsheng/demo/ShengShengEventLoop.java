@@ -71,7 +71,7 @@ public class ShengShengEventLoop implements EventLoop {
             Runnable task = null;
             try {
                 task = taskQueue.take();
-                if(task == WAKE_UP){
+                if (task == WAKE_UP) {
                     task = null;
                 }
             } catch (InterruptedException ignore) {
@@ -85,7 +85,7 @@ public class ShengShengEventLoop implements EventLoop {
         Runnable task = null;
         try {
             task = taskQueue.poll(scheduleTask.getDeadline() - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-            if(task == WAKE_UP){
+            if (task == WAKE_UP) {
                 task = null;
             }
         } catch (InterruptedException ignore) {
