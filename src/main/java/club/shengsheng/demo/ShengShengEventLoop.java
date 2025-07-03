@@ -3,6 +3,7 @@ package club.shengsheng.demo;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -11,57 +12,52 @@ import java.util.concurrent.atomic.AtomicInteger;
  **/
 public class ShengShengEventLoop implements EventLoop {
 
-    private static final AtomicInteger ID = new AtomicInteger();
+    private static final AtomicInteger THREAD_NAME_INDEX = new AtomicInteger();
 
-    public static final Runnable WAKEUP = () -> {
+    private static final Runnable WAKE_UP = () -> {
     };
-
-    private final Thread thread;
 
     private final BlockingQueue<Runnable> taskQueue;
 
-    private final BlockingQueue<ScheduleTask> scheduleTaskQueue;
+    private final PriorityBlockingQueue<ScheduleTask> scheduleTaskBlockingQueue;
 
-    private volatile boolean shutdown = false;
+    private final Thread thread;
+
 
     public ShengShengEventLoop() {
-        taskQueue = new ArrayBlockingQueue<>(1024);
-        scheduleTaskQueue = new ArrayBlockingQueue<>(1024);
-        this.thread = new EventLoopThread("ShengSheng-EventLoop-" + ID.getAndIncrement());
-        thread.start();
+        this.taskQueue = new ArrayBlockingQueue<>(1024);
+        this.scheduleTaskBlockingQueue = new PriorityBlockingQueue<>(1024);
+        this.thread = new EventLoopThread("shengsheng-eventLoop-thread-" + THREAD_NAME_INDEX.incrementAndGet());
+        this.thread.start();
     }
 
     @Override
     public void execute(Runnable runnable) {
-        if (!this.taskQueue.offer(runnable)) {
-            throw new IllegalArgumentException("队列已满");
+        if (!taskQueue.offer(runnable)) {
+            throw new RuntimeException("阻塞队列已经满了");
         }
     }
-
 
     @Override
     public void schedule(Runnable task, long delay, TimeUnit unit) {
         ScheduleTask scheduleTask = new ScheduleTask(task, this, deadlineMs(delay, unit), -1);
-        if (!this.scheduleTaskQueue.offer(scheduleTask)) {
-            throw new IllegalArgumentException("队列已满");
+        if (!scheduleTaskBlockingQueue.offer(scheduleTask)) {
+            throw new RuntimeException("阻塞队列已经满了");
         }
+        execute(WAKE_UP);
     }
-
 
     @Override
     public void scheduleAtFixedRate(Runnable task, long initialDelay, long period, TimeUnit unit) {
         ScheduleTask scheduleTask = new ScheduleTask(task, this, deadlineMs(initialDelay, unit), unit.toMillis(period));
-        if (!this.scheduleTaskQueue.offer(scheduleTask)) {
-            throw new IllegalArgumentException("队列已满");
+        if (!scheduleTaskBlockingQueue.offer(scheduleTask)) {
+            throw new RuntimeException("阻塞队列已经满了");
         }
+        execute(WAKE_UP);
     }
 
     private long deadlineMs(long delay, TimeUnit unit) {
-        long delayMs = unit.toMillis(delay);
-        if (delayMs <= 0) {
-            return 0;
-        }
-        return delayMs;
+        return unit.toMillis(delay) + System.currentTimeMillis();
     }
 
     @Override
@@ -69,18 +65,13 @@ public class ShengShengEventLoop implements EventLoop {
         return this;
     }
 
-    @Override
-    public Queue<ScheduleTask> getScheduleQueue() {
-        return scheduleTaskQueue;
-    }
-
-    private Runnable takeTask() {
-        ScheduleTask scheduleTask = scheduleTaskQueue.peek();
+    private Runnable getTask() {
+        ScheduleTask scheduleTask = scheduleTaskBlockingQueue.peek();
         if (scheduleTask == null) {
             Runnable task = null;
             try {
                 task = taskQueue.take();
-                if (WAKEUP == task) {
+                if(task == WAKE_UP){
                     task = null;
                 }
             } catch (InterruptedException ignore) {
@@ -89,39 +80,40 @@ public class ShengShengEventLoop implements EventLoop {
             return task;
         }
         if (scheduleTask.getDeadline() <= System.currentTimeMillis()) {
-            return scheduleTaskQueue.poll();
+            return scheduleTaskBlockingQueue.poll();
         }
-        Runnable task;
+        Runnable task = null;
         try {
             task = taskQueue.poll(scheduleTask.getDeadline() - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+            if(task == WAKE_UP){
+                task = null;
+            }
         } catch (InterruptedException ignore) {
-            return null;
-        }
-        if (task == WAKEUP) {
-            return null;
+
         }
         return task;
+
     }
 
+    @Override
+    public Queue<ScheduleTask> getScheduleTaskQueue() {
+        return this.scheduleTaskBlockingQueue;
+    }
 
     class EventLoopThread extends Thread {
 
-        EventLoopThread(String name) {
+        public EventLoopThread(String name) {
             super(name);
         }
 
         @Override
         public void run() {
             while (true) {
-                Runnable task = takeTask();
+                Runnable task = getTask();
                 if (task != null) {
                     task.run();
-                }
-                if (shutdown) {
-                    break;
                 }
             }
         }
     }
-
 }

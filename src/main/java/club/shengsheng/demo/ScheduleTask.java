@@ -1,22 +1,23 @@
 package club.shengsheng.demo;
 
+import club.shengsheng.EventLoop;
 
 /**
  * @author gongxuanzhangmelt@gmail.com
  **/
 public class ScheduleTask implements Runnable, Comparable<ScheduleTask> {
 
+    private final Runnable runnable;
+
     private long deadline;
 
-    private final long period;
+    private long period;
 
-    private final Runnable task;
+    private EventLoop eventLoop;
 
-    private final EventLoop executor;
-
-    public ScheduleTask(Runnable task, EventLoop eventLoop, long deadline, long period) {
-        this.task = task;
-        this.executor = eventLoop;
+    public ScheduleTask(Runnable runnable, EventLoop eventLoop, long deadline, long period) {
+        this.runnable = runnable;
+        this.eventLoop = eventLoop;
         this.deadline = deadline;
         this.period = period;
     }
@@ -24,13 +25,13 @@ public class ScheduleTask implements Runnable, Comparable<ScheduleTask> {
     @Override
     public void run() {
         try {
-            task.run();
+            runnable.run();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (period > 0) {
                 this.deadline += period;
-                this.executor.getScheduleQueue().offer(this);
+                eventLoop.getScheduleTaskQueue().offer(this);
             }
         }
     }
@@ -41,6 +42,6 @@ public class ScheduleTask implements Runnable, Comparable<ScheduleTask> {
 
     @Override
     public int compareTo(ScheduleTask o) {
-        return Long.compare(this.deadline, o.deadline);
+        return Long.compare(this.deadline,o.deadline);
     }
 }
