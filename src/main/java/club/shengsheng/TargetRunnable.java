@@ -1,4 +1,4 @@
-package club.shengsheng.demo;
+package club.shengsheng;
 
 /**
  * @author gongxuanzhangmelt@gmail.com

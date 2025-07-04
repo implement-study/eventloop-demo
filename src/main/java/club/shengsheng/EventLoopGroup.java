@@ -1,6 +1,4 @@
-package club.shengsheng.demo;
-
-import club.shengsheng.EventLoop;
+package club.shengsheng;
 
 import java.util.concurrent.TimeUnit;
 

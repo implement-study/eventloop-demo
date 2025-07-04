@@ -1,4 +1,4 @@
-package club.shengsheng.demo;
+package club.shengsheng;
 
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;

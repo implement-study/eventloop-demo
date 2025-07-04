@@ -1,6 +1,4 @@
-package club.shengsheng.demo;
-
-import club.shengsheng.ShengShengEventLoop;
+package club.shengsheng;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +31,7 @@ public class ShengShengEventLoopGroup implements EventLoopGroup {
     @Override
     public void schedule(Runnable runnable, long delay, TimeUnit unit) {
         if (runnable instanceof TargetRunnable targetRunnable) {
-            children[targetRunnable.getIndex()].execute(runnable);
+            children[targetRunnable.getIndex()].schedule(runnable, delay, unit);
         } else {
             next().schedule(runnable, delay, unit);
         }
@@ -43,7 +41,7 @@ public class ShengShengEventLoopGroup implements EventLoopGroup {
     @Override
     public void scheduleAtFixedRate(Runnable runnable, long initialDelay, long period, TimeUnit unit) {
         if (runnable instanceof TargetRunnable targetRunnable) {
-            children[targetRunnable.getIndex()].execute(runnable);
+            children[targetRunnable.getIndex()].scheduleAtFixedRate(runnable, initialDelay, period, unit);
         } else {
             next().scheduleAtFixedRate(runnable, initialDelay, period, unit);
         }
